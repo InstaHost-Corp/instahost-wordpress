@@ -1,0 +1,29 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.0', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Lint PHP
+        run: find . -path './.git' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Run smoke tests
+        run: php tests/smoke.php
+      - name: Check version consistency
+        run: php scripts/check-version.php
+      - name: Build plugin package
+        run: sh scripts/build.sh
