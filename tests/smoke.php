@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ );
 define( 'INSTAHOST_WORDPRESS_MCP_VERSION', '1.0.0' );
+define( 'EMPTY_TRASH_DAYS', 30 );
 
 $GLOBALS['writes_enabled']     = false;
 $GLOBALS['logged_in']         = true;
@@ -145,6 +146,14 @@ function assert_true( bool $condition, string $message ): void {
 	}
 }
 
+function invoke_private_static( string $method, mixed ...$arguments ): mixed {
+	$reflection = new ReflectionMethod( Instahost_WordPress_MCP_Abilities::class, $method );
+	if ( PHP_VERSION_ID < 80100 ) {
+		$reflection->setAccessible( true );
+	}
+	return $reflection->invoke( null, ...$arguments );
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-instahost-wordpress-mcp-abilities.php';
 
 Instahost_WordPress_MCP_Abilities::register();
@@ -257,6 +266,14 @@ $GLOBALS['capabilities']['delete_post'] = true;
 assert_true(
 	true === Instahost_WordPress_MCP_Abilities::can_delete_post( array( 'id' => 44 ) ),
 	'Authorized deletion of REST-visible content must pass.'
+);
+assert_true(
+	false === invoke_private_static( 'recoverable_trash_available', 0 ),
+	'Zero trash-retention days must disable recoverable trash.'
+);
+assert_true(
+	true === invoke_private_static( 'recoverable_trash_available', 30 ),
+	'Positive trash-retention days must enable recoverable trash.'
 );
 $revision->revision = true;
 assert_true(

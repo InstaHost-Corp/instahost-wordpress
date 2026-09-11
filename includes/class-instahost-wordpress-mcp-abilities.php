@@ -309,10 +309,18 @@ final class Instahost_WordPress_MCP_Abilities {
 	 *
 	 * @param array<string, mixed> $input Ability input.
 	 */
-	public static function can_delete_post( array $input = array() ): bool {
+	public static function can_delete_post( array $input = array() ) {
 		$id = absint( $input['id'] ?? 0 );
 		if ( ! self::writes_enabled() || 0 === $id ) {
 			return false;
+		}
+
+		$force = rest_sanitize_boolean( $input['force'] ?? false );
+		if ( ! $force && ! self::recoverable_trash_available() ) {
+			return new WP_Error(
+				'instahost_mcp_trash_unavailable',
+				'Recoverable trash is disabled. Set force to true only if permanent deletion is intended.'
+			);
 		}
 
 		$post = get_post( $id );
@@ -491,15 +499,27 @@ final class Instahost_WordPress_MCP_Abilities {
 			);
 		}
 
+		if ( ! $force && ! self::recoverable_trash_available() ) {
+			return new WP_Error(
+				'instahost_mcp_trash_unavailable',
+				'Recoverable trash is disabled. Set force to true only if permanent deletion is intended.'
+			);
+		}
+
 		$result = $force ? wp_delete_post( $id, true ) : wp_trash_post( $id );
 		if ( ! $result instanceof WP_Post ) {
 			return new WP_Error( 'instahost_mcp_delete_failed', 'Content could not be deleted.' );
 		}
 
+		$trashed = ! $force ? get_post( $id ) : null;
+		if ( ! $force && ( ! $trashed instanceof WP_Post || 'trash' !== $trashed->post_status ) ) {
+			return new WP_Error( 'instahost_mcp_trash_failed', 'Content was not moved to recoverable trash.' );
+		}
+
 		return array(
 			'id'      => $id,
 			'deleted' => $force,
-			'trashed' => ! $force && 'trash' === get_post_status( $id ),
+			'trashed' => ! $force,
 		);
 	}
 
@@ -628,6 +648,14 @@ final class Instahost_WordPress_MCP_Abilities {
 	 */
 	private static function writes_enabled(): bool {
 		return (bool) get_option( self::OPTION_WRITES, false );
+	}
+
+	/**
+	 * Returns whether WordPress has recoverable trash enabled.
+	 */
+	private static function recoverable_trash_available( ?int $days = null ): bool {
+		$days = null === $days && defined( 'EMPTY_TRASH_DAYS' ) ? (int) EMPTY_TRASH_DAYS : $days;
+		return null !== $days && $days > 0;
 	}
 
 	/**

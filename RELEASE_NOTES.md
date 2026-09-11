@@ -25,6 +25,7 @@ The first release of InstaHost WordPress MCP provides secure content-management 
 - The dedicated server requires the WordPress `edit_posts` capability.
 - Per-post read, edit, and delete capability checks protect content operations.
 - Publishing, private status transitions, and trashing require the corresponding WordPress capabilities.
+- Non-forced deletion fails closed if WordPress recoverable trash is disabled.
 - Revisions and autosaves are excluded, and password-protected content requires edit access.
 - Write abilities are disabled by default.
 - Content passes through WordPress sanitization and content APIs.

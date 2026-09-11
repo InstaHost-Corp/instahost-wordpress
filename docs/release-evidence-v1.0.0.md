@@ -40,7 +40,7 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 |---|---|---|
 | Anonymous or low-privilege transport access | MCP Adapter custom-server permission callback | `tests/smoke.php` verifies 401, 403, and editor success |
 | Ability exposed unintentionally | Explicit `meta.public=true` and deterministic ability allowlist | `tests/smoke.php` verifies registered names and metadata |
-| Unauthorized or ambiguous mutation | Write setting, per-object/status callbacks, explicit trash API, force-only permanent delete | `tests/smoke.php` verifies publish/trash denial and trash/delete semantics |
+| Unauthorized or ambiguous mutation | Write setting, per-object/status callbacks, explicit trash API, retention guard, force-only permanent delete | `tests/smoke.php` verifies publish/trash denial, zero-day retention rejection, and trash/delete semantics |
 | Historical or protected content disclosure | Reject revisions/autosaves and require edit access for protected content | `tests/smoke.php` rejection cases |
 | Tool-list context growth | Focused custom server and seven-ability maximum | Registration smoke test |
 | Client transport or supply-chain drift | Use official MCP Adapter endpoint and pin Automattic remote 0.4.0 | Upstream source review and documented configuration |
@@ -56,7 +56,7 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 - `sh scripts/build.sh`: PASS.
 - `unzip -tq dist/instahost-wordpress-mcp-1.0.0.zip`: PASS.
 - Source-tree credential-pattern scan: PASS; matches are documentation placeholders or references to WordPress Application Passwords.
-- Reproducible plugin ZIP SHA-256 before final freeze: `3ca83224820432a3deba97d2ca617d2cd65dadbe88bb3323bec40390df3b1c3a`.
+- Reproducible plugin ZIP SHA-256 before final freeze: `6a24c7a0ab375ac9d02efb3cf8f789ef1ff07b7870a72373bd8e73805d825bcb`.
 - MCP Adapter 0.6.1 release asset SHA-256 matched its GitHub digest: `1c3cd47c32e99b4e7d8690a44a7890256e92a8b96f61776cbe1894e5483cf676`.
 - Live WordPress 7.1 plus MCP Adapter 0.6.1 release-asset validation: PASS.
 - Application Password initialize and MCP session creation: PASS.
@@ -66,6 +66,7 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 - Live `get-site-info`, draft creation, draft retrieval, and permanent deletion: PASS.
 - Corrective live schema check confirmed `future` is absent from create/update status enums.
 - Corrective live deletion checks confirmed explicit trash, rejection of repeat non-forced trash, and force-only permanent deletion.
+- Unit coverage confirms zero-day trash retention fails closed before non-forced deletion.
 - Post-test content cleanup and write-option reset: PASS.
 
 ## Dependencies and bounded resources

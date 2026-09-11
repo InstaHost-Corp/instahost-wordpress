@@ -66,6 +66,7 @@ OAuth is preferred where the WordPress site provides compatible authorization me
 - MCP Adapter transport permission requires an authenticated user with `edit_posts`.
 - Every ability independently checks the relevant WordPress capabilities.
 - Publish, private, trash, and delete operations have explicit capability gates.
+- Non-forced deletion is rejected when WordPress recoverable trash is disabled.
 - The tested remote bridge is pinned to `@automattic/mcp-wordpress-remote@0.4.0`.
 - Non-published list results are limited to the current author unless the caller can edit others' content.
 - Revisions, autosaves, and inaccessible password-protected content are not returned.
