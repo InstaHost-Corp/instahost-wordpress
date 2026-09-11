@@ -52,12 +52,18 @@ final class Instahost_WordPress_MCP_Server {
 	public function handle_request( WP_REST_Request $request ): WP_REST_Response {
 		$payload = $request->get_json_params();
 
-		if ( ! is_array( $payload ) || empty( $payload['method'] ) ) {
+		if (
+			! is_array( $payload )
+			|| '2.0' !== ( $payload['jsonrpc'] ?? null )
+			|| ! isset( $payload['method'] )
+			|| ! is_string( $payload['method'] )
+			|| '' === $payload['method']
+		) {
 			return $this->error_response( null, -32600, 'Invalid JSON-RPC request.', 400 );
 		}
 
 		$id     = $payload['id'] ?? null;
-		$method = sanitize_text_field( (string) $payload['method'] );
+		$method = $payload['method'];
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 
 		$origin_error = $this->validate_origin( $request, $id );
@@ -250,7 +256,7 @@ final class Instahost_WordPress_MCP_Server {
 	 * @return array<string, mixed>
 	 */
 	private function call_tool( array $params ): array {
-		$name      = isset( $params['name'] ) ? sanitize_key( (string) $params['name'] ) : '';
+		$name      = isset( $params['name'] ) && is_string( $params['name'] ) ? $params['name'] : '';
 		$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
 
 		try {

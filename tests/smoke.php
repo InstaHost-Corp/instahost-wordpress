@@ -27,11 +27,22 @@ final class WP_REST_Response {
 final class WP_REST_Request {
 	/**
 	 * @param array<string, string> $headers Headers.
+	 * @param array<string, mixed>  $payload JSON payload.
 	 */
-	public function __construct( private array $headers = array() ) {}
+	public function __construct(
+		private array $headers = array(),
+		private array $payload = array()
+	) {}
 
 	public function get_header( string $name ): string {
 		return $this->headers[ strtolower( $name ) ] ?? '';
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	public function get_json_params(): array {
+		return $this->payload;
 	}
 }
 
@@ -191,6 +202,32 @@ $missing_meta_request = new WP_REST_Request(
 $missing_meta = invoke_private( $server, 'validate_protocol', $missing_meta_request, $missing_meta_payload, 2 );
 assert_true( 400 === $missing_meta->status, 'Modern headers without body metadata must fail.' );
 assert_true( -32020 === $missing_meta->data['error']['code'], 'Missing modern metadata must use the HeaderMismatch code.' );
+
+$malformed_method = new WP_REST_Request(
+	array(),
+	array(
+		'jsonrpc' => '2.0',
+		'id'      => 3,
+		'method'  => '<b>tools/call</b>',
+		'params'  => array(
+			'name'      => 'wordpress_delete_post',
+			'arguments' => array( 'id' => 42 ),
+		),
+	)
+);
+$malformed_method_response = $server->handle_request( $malformed_method );
+assert_true( 404 === $malformed_method_response->status, 'Malformed method identifiers must not be normalized into executable methods.' );
+
+$malformed_tool = invoke_private(
+	$server,
+	'call_tool',
+	array(
+		'name'      => 'wordpress_delete_post!',
+		'arguments' => array( 'id' => 42 ),
+	)
+);
+assert_true( true === $malformed_tool['isError'], 'Malformed tool identifiers must not be normalized into executable tools.' );
+assert_true( str_contains( $malformed_tool['content'][0]['text'], 'Unknown tool' ), 'Malformed tools must return an unknown-tool error.' );
 
 $same_origin = new WP_REST_Request( array( 'origin' => 'https://example.com' ) );
 $evil_origin = new WP_REST_Request( array( 'origin' => 'https://evil.example' ) );

@@ -33,6 +33,7 @@ This is a new public artifact with an authenticated WordPress API and optional c
 | Unauthorized mutation | Write-tools setting and per-object/status capability checks | `tests/smoke.php` verifies default tool exposure and publish/trash capability failures |
 | Historical or protected content disclosure | Reject revisions/autosaves and require edit access for password-protected content | `tests/smoke.php` rejection cases |
 | Protocol/header confusion | Matching modern body and HTTP metadata | `tests/smoke.php` matching and mismatch cases |
+| Identifier canonicalization bypass | Exact, unsanitized JSON-RPC method and tool dispatch | `tests/smoke.php` malformed method and tool cases |
 | Browser DNS-rebinding/cross-origin access | Origin validation | `tests/smoke.php` same-origin and hostile-origin cases |
 | Version drift | One consistency check across plugin metadata and notes | `php scripts/check-version.php` |
 | Broken PHP package | Multi-version lint and ZIP integrity checks | GitHub Actions plus local lint and `unzip -tq` |
@@ -46,7 +47,7 @@ This is a new public artifact with an authenticated WordPress API and optional c
 - `sh scripts/build.sh`: PASS.
 - `unzip -tq dist/instahost-wordpress-mcp-1.0.0.zip`: PASS.
 - Source-tree credential-pattern scan: PASS; matches were documentation references to WordPress Application Passwords only.
-- Corrected installable ZIP SHA-256 (two consecutive builds): `ae6d3a69f3b10edcf318acfb4c25e7f6e49f1e2e3a6b68b1cefaff2f772a597b`.
+- Corrected installable ZIP SHA-256 (two consecutive builds): `751b1b2db39e8985905ae4bf7786b9820def104174341d67f549ee287a78261d`.
 
 ## External dependencies and bounded resources
 
