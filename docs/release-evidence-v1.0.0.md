@@ -30,7 +30,8 @@ This is a new public artifact with an authenticated WordPress API and optional c
 | Risk | Control | Executable evidence |
 |---|---|---|
 | Anonymous access | REST permission callback requires authentication and `edit_posts` | Source review plus live-install requirement |
-| Unauthorized mutation | Write-tools setting and per-object capability checks | `tests/smoke.php` verifies default tool exposure; source review verifies capability gates |
+| Unauthorized mutation | Write-tools setting and per-object/status capability checks | `tests/smoke.php` verifies default tool exposure and publish/trash capability failures |
+| Historical or protected content disclosure | Reject revisions/autosaves and require edit access for password-protected content | `tests/smoke.php` rejection cases |
 | Protocol/header confusion | Matching modern body and HTTP metadata | `tests/smoke.php` matching and mismatch cases |
 | Browser DNS-rebinding/cross-origin access | Origin validation | `tests/smoke.php` same-origin and hostile-origin cases |
 | Version drift | One consistency check across plugin metadata and notes | `php scripts/check-version.php` |
@@ -45,14 +46,14 @@ This is a new public artifact with an authenticated WordPress API and optional c
 - `sh scripts/build.sh`: PASS.
 - `unzip -tq dist/instahost-wordpress-mcp-1.0.0.zip`: PASS.
 - Source-tree credential-pattern scan: PASS; matches were documentation references to WordPress Application Passwords only.
-- Installable ZIP SHA-256 before publication: `084ce22e232dbffb872e5052c22c97e656bca9a775ae5e0a76c7d3805b770e88`.
+- Corrected installable ZIP SHA-256 (two consecutive builds): `ae6d3a69f3b10edcf318acfb4c25e7f6e49f1e2e3a6b68b1cefaff2f772a597b`.
 
 ## External dependencies and bounded resources
 
 - WordPress 6.5+ and PHP 8.0+ are declared runtime dependencies.
 - No third-party PHP packages, remote APIs, database migrations, scheduled tasks, persistent files, or external secrets are introduced.
 - Request and response size remain governed by the existing WordPress/PHP/web-server limits.
-- End-to-end authentication and content mutation require a live WordPress installation and are recorded as a residual validation boundary for the initial source release.
+- End-to-end WordPress REST authentication and database mutation require a live WordPress installation and are recorded as a residual validation boundary for the initial source release. Security-critical permission, status-transition, protected-content, protocol, and origin decisions have standalone executable coverage.
 
 ## Recovery
 

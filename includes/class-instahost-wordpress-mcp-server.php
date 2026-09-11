@@ -376,6 +376,8 @@ final class Instahost_WordPress_MCP_Server {
 			throw new RuntimeException( 'Post not found or access denied.' );
 		}
 
+		$this->assert_post_content_access( $post );
+
 		return $this->format_post( $post, true );
 	}
 
@@ -425,6 +427,11 @@ final class Instahost_WordPress_MCP_Server {
 			throw new InvalidArgumentException( 'title is required.' );
 		}
 
+		$this->assert_status_change_allowed(
+			isset( $arguments['status'] ) ? sanitize_key( (string) $arguments['status'] ) : 'draft',
+			$post_type_object
+		);
+
 		$id = wp_insert_post( $this->prepare_post_data( $arguments, $post_type ), true );
 		if ( is_wp_error( $id ) ) {
 			throw new RuntimeException( $id->get_error_message() );
@@ -445,6 +452,16 @@ final class Instahost_WordPress_MCP_Server {
 
 		if ( ! $post instanceof WP_Post || ! current_user_can( 'edit_post', $id ) ) {
 			throw new RuntimeException( 'Post not found or access denied.' );
+		}
+
+		$this->assert_accessible_post_type( $post->post_type );
+		$post_type_object = get_post_type_object( $post->post_type );
+		if ( isset( $arguments['status'] ) ) {
+			$this->assert_status_change_allowed(
+				sanitize_key( (string) $arguments['status'] ),
+				$post_type_object,
+				$id
+			);
 		}
 
 		$data       = $this->prepare_post_data( $arguments, $post->post_type );
@@ -559,6 +576,44 @@ final class Instahost_WordPress_MCP_Server {
 	}
 
 	/**
+	 * Protects internal, historical, and password-protected content.
+	 */
+	private function assert_post_content_access( WP_Post $post ): void {
+		if ( wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
+			throw new RuntimeException( 'Revisions and autosaves are not available through this tool.' );
+		}
+
+		$this->assert_accessible_post_type( $post->post_type );
+
+		if ( '' !== $post->post_password && ! current_user_can( 'edit_post', $post->ID ) ) {
+			throw new RuntimeException( 'Password-protected content requires edit access.' );
+		}
+	}
+
+	/**
+	 * Enforces capabilities for privileged post-status transitions.
+	 *
+	 * @param object $post_type_object WordPress post type object.
+	 */
+	private function assert_status_change_allowed( string $status, object $post_type_object, int $post_id = 0 ): void {
+		$allowed_statuses = array( 'draft', 'pending', 'publish', 'future', 'private', 'trash' );
+		if ( ! in_array( $status, $allowed_statuses, true ) ) {
+			throw new InvalidArgumentException( 'Invalid or unsupported post status.' );
+		}
+
+		if (
+			in_array( $status, array( 'publish', 'future', 'private' ), true )
+			&& ! current_user_can( $post_type_object->cap->publish_posts )
+		) {
+			throw new RuntimeException( 'You cannot publish this post type.' );
+		}
+
+		if ( 'trash' === $status && ( 0 === $post_id || ! current_user_can( 'delete_post', $post_id ) ) ) {
+			throw new RuntimeException( 'You cannot trash this post.' );
+		}
+	}
+
+	/**
 	 * Validates and returns an ID argument.
 	 *
 	 * @param array<string, mixed> $arguments Tool arguments.
@@ -638,9 +693,16 @@ final class Instahost_WordPress_MCP_Server {
 			: '';
 		$header_version = sanitize_text_field( (string) $request->get_header( 'mcp-protocol-version' ) );
 
-		// Requests without modern metadata are treated as legacy MCP 2025-03-26.
-		if ( '' === $body_version ) {
+		$header_method = (string) $request->get_header( 'mcp-method' );
+		$header_name   = (string) $request->get_header( 'mcp-name' );
+
+		// Requests without modern metadata or headers are treated as legacy MCP 2025-03-26.
+		if ( '' === $body_version && '' === $header_version && '' === $header_method && '' === $header_name ) {
 			return null;
+		}
+
+		if ( '' === $body_version || '' === $header_version ) {
+			return $this->error_response( $id, -32020, 'Modern MCP protocol metadata and headers are required together.', 400 );
 		}
 
 		if ( self::MODERN_VERSION !== $body_version ) {
@@ -648,20 +710,18 @@ final class Instahost_WordPress_MCP_Server {
 		}
 
 		if ( $header_version !== $body_version ) {
-			return $this->error_response( $id, -32023, 'MCP protocol version header does not match request metadata.', 400 );
+			return $this->error_response( $id, -32020, 'MCP protocol version header does not match request metadata.', 400 );
 		}
 
 		$method        = isset( $payload['method'] ) ? (string) $payload['method'] : '';
-		$header_method = (string) $request->get_header( 'mcp-method' );
 		if ( $header_method !== $method ) {
-			return $this->error_response( $id, -32023, 'Mcp-Method header does not match the JSON-RPC method.', 400 );
+			return $this->error_response( $id, -32020, 'Mcp-Method header does not match the JSON-RPC method.', 400 );
 		}
 
 		if ( 'tools/call' === $method ) {
 			$name        = isset( $params['name'] ) ? (string) $params['name'] : '';
-			$header_name = (string) $request->get_header( 'mcp-name' );
 			if ( $header_name !== $name ) {
-				return $this->error_response( $id, -32023, 'Mcp-Name header does not match the requested tool.', 400 );
+				return $this->error_response( $id, -32020, 'Mcp-Name header does not match the requested tool.', 400 );
 			}
 		}
 

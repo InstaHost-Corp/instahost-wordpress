@@ -23,6 +23,8 @@ The first release of InstaHost WordPress MCP provides a secure, installable Word
 - Anonymous requests are rejected.
 - The MCP user must have the WordPress `edit_posts` capability.
 - Per-post read, edit, and delete capability checks protect content operations.
+- Publishing, private/future status transitions, and trashing require the corresponding WordPress capabilities.
+- Revisions and autosaves are excluded, and password-protected content requires edit access.
 - Write tools are disabled by default.
 - Modern MCP protocol headers and request metadata must match.
 - Browser `Origin` headers are restricted to the WordPress installation unless explicitly extended through a filter.
