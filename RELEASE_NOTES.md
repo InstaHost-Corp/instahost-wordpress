@@ -46,7 +46,8 @@ The first release of InstaHost WordPress MCP provides secure content-management 
 
 ## Validation
 
-- PHP syntax validation on PHP 8.0 and PHP 8.3 in GitHub Actions.
+- PHP 8.0 syntax and smoke validation in the official `php:8.0-cli` container.
+- GitHub-hosted runner PHP syntax, smoke, version, and package validation.
 - Standalone MCP Adapter registration, transport permission, and ability permission smoke tests.
 - Version consistency verification across plugin metadata and release documentation.
 - Deterministic installable ZIP build.

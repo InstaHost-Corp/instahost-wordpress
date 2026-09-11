@@ -53,7 +53,8 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 - `find ... -name '*.php' ... php -l`: PASS on local PHP 8.5.10.
 - `php tests/smoke.php`: PASS.
 - `INSTAHOST_TEST_TRASH_DAYS=0 php tests/smoke.php`: PASS; permission and execution rejected non-forced deletion before the trash API was called, while explicit force deletion remained available.
-- GitHub Actions dependencies are pinned to immutable commit SHAs to satisfy the organization-wide SHA-pinning policy.
+- Official `php:8.0-cli` container: PHP lint, normal smoke, zero-day trash smoke, and version consistency PASS.
+- GitHub Actions uses only the GitHub-owned checkout action, pinned to an immutable commit SHA to satisfy the organization policy.
 - `php scripts/check-version.php`: PASS, all representations are `1.0.0`.
 - `sh scripts/build.sh`: PASS.
 - `unzip -tq dist/instahost-wordpress-mcp-1.0.0.zip`: PASS.
