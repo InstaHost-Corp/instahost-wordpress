@@ -1,0 +1,26 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Show PHP version
+        run: php --version
+      - name: Lint PHP
+        run: find . -path './.git' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Run smoke tests
+        run: |
+          php tests/smoke.php
+          INSTAHOST_TEST_TRASH_DAYS=0 php tests/smoke.php
+      - name: Check version consistency
+        run: php scripts/check-version.php
+      - name: Build plugin package
+        run: sh scripts/build.sh
