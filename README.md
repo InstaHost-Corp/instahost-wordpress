@@ -1,38 +1,85 @@
 # InstaHost WordPress MCP
 
-An installable WordPress plugin that exposes authenticated content tools through the Model Context Protocol (MCP).
+An installable WordPress plugin that adds secure content-management abilities to the official [WordPress MCP Adapter](https://github.com/WordPress/mcp-adapter).
 
-## Endpoint
+## Architecture
+
+This plugin does not implement a competing MCP transport. It registers WordPress Abilities and creates a focused MCP Adapter server at:
 
 ```text
-https://example.com/wp-json/instahost-mcp/v1/mcp
+https://example.com/wp-json/mcp/instahost-wordpress
 ```
 
-The endpoint accepts MCP JSON-RPC messages over HTTP POST. It supports stateless MCP `2026-07-28` requests and legacy MCP `2025-03-26` initialization. Authenticate with a WordPress username and Application Password using HTTP Basic authentication.
+MCP Adapter owns the HTTP transport, MCP sessions, schema conversion, error handling, and ability execution. InstaHost WordPress MCP supplies the content abilities and their WordPress capability checks.
 
-## Included tools
+For desktop MCP clients, use [Automattic MCP WordPress Remote](https://github.com/Automattic/mcp-wordpress-remote) as the local stdio-to-WordPress bridge. It supports OAuth 2.1, JWT, Application Passwords, proxy configuration, and MCP Adapter session forwarding.
 
-- `wordpress_get_site_info`
-- `wordpress_list_posts`
-- `wordpress_get_post`
-- `wordpress_search`
-- `wordpress_create_post` (optional)
-- `wordpress_update_post` (optional)
-- `wordpress_delete_post` (optional)
+## Abilities
 
-Write tools are disabled by default. Enable them under **Settings > InstaHost MCP**.
+- `instahost-wordpress/get-site-info`
+- `instahost-wordpress/list-posts`
+- `instahost-wordpress/get-post`
+- `instahost-wordpress/search`
+- `instahost-wordpress/create-post` (optional)
+- `instahost-wordpress/update-post` (optional)
+- `instahost-wordpress/delete-post` (optional)
 
-Modern clients must provide matching request `_meta`, `MCP-Protocol-Version`, `Mcp-Method`, and (for tool calls) `Mcp-Name` values. Browser requests are restricted to the site's own origin by default; additional trusted origins can be supplied with the `instahost_wordpress_mcp_allowed_origins` WordPress filter.
-
-## Install
-
-Copy or upload the `Instahost-Wordpress-MCP` directory into `wp-content/plugins`, then activate **InstaHost WordPress MCP**.
+Write abilities are disabled by default. Enable them under **Settings > InstaHost MCP**.
 
 ## Requirements
 
-- WordPress 6.5 or newer
+- WordPress 6.9 or newer
 - PHP 8.0 or newer
+- [MCP Adapter](https://github.com/WordPress/mcp-adapter/releases/latest) 0.6.1 or newer
 - HTTPS for remote access
+
+## Install
+
+1. Download `mcp-adapter.zip` from the [MCP Adapter releases](https://github.com/WordPress/mcp-adapter/releases/latest), then install and activate it.
+2. Upload and activate **InstaHost WordPress MCP**.
+3. Open **Settings > InstaHost MCP**.
+4. Copy the generated `@automattic/mcp-wordpress-remote` configuration and replace the credential placeholders, or configure OAuth/JWT.
+
+## Example remote configuration
+
+```json
+{
+  "mcpServers": {
+    "instahost-wordpress": {
+      "command": "npx",
+      "args": ["-y", "@automattic/mcp-wordpress-remote"],
+      "env": {
+        "WP_API_URL": "https://example.com/wp-json/mcp/instahost-wordpress",
+        "WP_API_USERNAME": "your-wordpress-username",
+        "WP_API_PASSWORD": "your-application-password",
+        "OAUTH_ENABLED": "false"
+      }
+    }
+  }
+}
+```
+
+OAuth is preferred where the WordPress site provides compatible authorization metadata. Application Passwords must be used only over HTTPS.
+
+## Security model
+
+- MCP Adapter transport permission requires an authenticated user with `edit_posts`.
+- Every ability independently checks the relevant WordPress capabilities.
+- Publish, future, private, trash, and delete operations have explicit capability gates.
+- Non-published list results are limited to the current author unless the caller can edit others' content.
+- Revisions, autosaves, and inaccessible password-protected content are not returned.
+- Mutation input is sanitized through WordPress APIs.
+- Uninstall removes only this plugin's setting; it never deletes WordPress content.
+
+## Build and test
+
+```sh
+php tests/smoke.php
+php scripts/check-version.php
+sh scripts/build.sh
+```
+
+The installable artifact is written to `dist/`.
 
 ## License
 

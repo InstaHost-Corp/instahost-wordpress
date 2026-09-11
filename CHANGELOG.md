@@ -6,13 +6,14 @@ All notable changes to InstaHost WordPress MCP are documented here.
 
 ### Added
 
-- Authenticated MCP endpoint at `/wp-json/instahost-mcp/v1/mcp`.
-- Stateless MCP 2026-07-28 and legacy MCP 2025-03-26 compatibility.
-- Read-only tools for site information, content listing, content retrieval, and search.
-- Optional tools to create, update, trash, and permanently delete WordPress content.
-- WordPress Application Password support through the standard REST authentication path.
-- Same-origin browser protection, per-request protocol validation, capability enforcement, and input sanitization.
-- Administrator settings page with write tools disabled by default.
-- Automated PHP compatibility checks, protocol smoke tests, and deterministic ZIP packaging.
+- Integration with the official WordPress MCP Adapter and Abilities API.
+- Dedicated MCP Adapter endpoint at `/wp-json/mcp/instahost-wordpress`.
+- Read-only abilities for site information, content listing, content retrieval, and search.
+- Optional abilities to create, update, trash, and permanently delete WordPress content.
+- Ready-to-edit `@automattic/mcp-wordpress-remote` client configuration.
+- OAuth, JWT, and WordPress Application Password connection guidance.
+- Two-layer transport and ability permission enforcement, protected-content controls, and input sanitization.
+- Administrator settings page with write abilities disabled by default.
+- Automated PHP compatibility checks, adapter integration smoke tests, and deterministic ZIP packaging.
 
 [1.0.0]: https://github.com/InstaHost-Corp/instahost-wordpress/releases/tag/v1.0.0

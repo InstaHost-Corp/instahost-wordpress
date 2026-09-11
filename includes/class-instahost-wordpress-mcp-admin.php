@@ -54,17 +54,33 @@ final class Instahost_WordPress_MCP_Admin {
 			return;
 		}
 
-		$endpoint = rest_url( 'instahost-mcp/v1/mcp' );
+		$endpoint = rest_url( 'mcp/instahost-wordpress' );
+		$config   = array(
+			'mcpServers' => array(
+				'instahost-wordpress' => array(
+					'command' => 'npx',
+					'args'    => array( '-y', '@automattic/mcp-wordpress-remote' ),
+					'env'     => array(
+						'WP_API_URL'     => $endpoint,
+						'WP_API_USERNAME' => 'your-wordpress-username',
+						'WP_API_PASSWORD' => 'your-application-password',
+						'OAUTH_ENABLED'   => 'false',
+					),
+				),
+			),
+		);
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'InstaHost WordPress MCP', 'instahost-wordpress-mcp' ); ?></h1>
 			<p>
-				<?php esc_html_e( 'Connect an MCP client to this authenticated endpoint:', 'instahost-wordpress-mcp' ); ?>
+				<?php esc_html_e( 'This plugin uses the official WordPress MCP Adapter. Connect through this endpoint:', 'instahost-wordpress-mcp' ); ?>
 				<code><?php echo esc_html( $endpoint ); ?></code>
 			</p>
 			<p>
-				<?php esc_html_e( 'Create a WordPress Application Password for a user with the Editor or Administrator role, then use HTTP Basic authentication.', 'instahost-wordpress-mcp' ); ?>
+				<?php esc_html_e( 'For desktop MCP clients, use the Automattic remote bridge with OAuth, JWT, or a WordPress Application Password.', 'instahost-wordpress-mcp' ); ?>
 			</p>
+			<h2><?php esc_html_e( 'Application Password client configuration', 'instahost-wordpress-mcp' ); ?></h2>
+			<textarea class="large-text code" rows="16" readonly><?php echo esc_textarea( wp_json_encode( $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'instahost_wordpress_mcp' ); ?>
 				<table class="form-table" role="presentation">

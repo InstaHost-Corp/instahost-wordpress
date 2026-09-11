@@ -1,61 +1,59 @@
 <?php
 /**
- * Standalone protocol smoke tests.
+ * Standalone integration smoke tests for MCP Adapter registration.
  */
 
 declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ );
 define( 'INSTAHOST_WORDPRESS_MCP_VERSION', '1.0.0' );
-define( 'HOUR_IN_SECONDS', 3600 );
-define( 'MINUTE_IN_SECONDS', 60 );
 
-$GLOBALS['writes_enabled'] = false;
-$GLOBALS['logged_in']      = true;
-$GLOBALS['capabilities']   = array( 'edit_posts' => true );
+$GLOBALS['writes_enabled']     = false;
+$GLOBALS['logged_in']         = true;
+$GLOBALS['capabilities']      = array( 'edit_posts' => true );
+$GLOBALS['registered']        = array();
+$GLOBALS['posts']             = array();
 
-final class WP_REST_Response {
-	public mixed $data;
-	public int $status;
-
-	public function __construct( mixed $data = null, int $status = 200 ) {
-		$this->data   = $data;
-		$this->status = $status;
-	}
-}
-
-final class WP_REST_Request {
+final class WP_Error {
 	/**
-	 * @param array<string, string> $headers Headers.
-	 * @param array<string, mixed>  $payload JSON payload.
+	 * @param array<string, mixed> $data Error data.
 	 */
 	public function __construct(
-		private array $headers = array(),
-		private array $payload = array()
+		public string $code,
+		public string $message,
+		public array $data = array()
 	) {}
 
-	public function get_header( string $name ): string {
-		return $this->headers[ strtolower( $name ) ] ?? '';
-	}
-
-	/**
-	 * @return array<string, mixed>
-	 */
-	public function get_json_params(): array {
-		return $this->payload;
+	public function get_error_message(): string {
+		return $this->message;
 	}
 }
 
 final class WP_Post {
-	public int $ID;
 	public string $post_type = 'post';
+	public string $post_status = 'publish';
 	public string $post_password = '';
+	public string $post_name = 'example';
+	public string $post_content = 'Content';
 	public bool $revision = false;
 	public bool $autosave = false;
 
-	public function __construct( int $id ) {
-		$this->ID = $id;
+	public function __construct( public int $ID ) {}
+}
+
+final class Fake_Adapter {
+	/** @var array<int, mixed> */
+	public array $arguments = array();
+
+	public function create_server( mixed ...$arguments ): object {
+		$this->arguments = $arguments;
+		return (object) array( 'id' => $arguments[0] );
 	}
+}
+
+function wp_register_ability( string $name, array $definition ): object {
+	$GLOBALS['registered'][ $name ] = $definition;
+	return (object) array( 'name' => $name );
 }
 
 function get_option( string $name, mixed $default = false ): mixed {
@@ -70,12 +68,16 @@ function current_user_can( string $capability, mixed ...$args ): bool {
 	return $GLOBALS['capabilities'][ $capability ] ?? false;
 }
 
-function sanitize_text_field( string $value ): string {
-	return trim( $value );
+function sanitize_key( string $value ): string {
+	return strtolower( preg_replace( '/[^a-z0-9_\-]/', '', $value ) ?? '' );
 }
 
-function sanitize_key( string $value ): string {
-	return strtolower( preg_replace( '/[^a-z0-9_\\-]/', '', $value ) ?? '' );
+function absint( mixed $value ): int {
+	return abs( (int) $value );
+}
+
+function get_post( int $id ): ?WP_Post {
+	return $GLOBALS['posts'][ $id ] ?? null;
 }
 
 function get_post_type_object( string $post_type ): ?object {
@@ -86,9 +88,16 @@ function get_post_type_object( string $post_type ): ?object {
 	return (object) array(
 		'show_in_rest' => true,
 		'cap'          => (object) array(
-			'publish_posts' => 'publish_posts',
+			'create_posts'       => 'create_posts',
+			'publish_posts'      => 'publish_posts',
+			'read_private_posts' => 'read_private_posts',
+			'edit_others_posts'  => 'edit_others_posts',
 		),
 	);
+}
+
+function is_wp_error( mixed $value ): bool {
+	return $value instanceof WP_Error;
 }
 
 function wp_is_post_revision( WP_Post $post ): bool {
@@ -99,30 +108,6 @@ function wp_is_post_autosave( WP_Post $post ): bool {
 	return $post->autosave;
 }
 
-function home_url( string $path = '' ): string {
-	return 'https://example.com' . $path;
-}
-
-function site_url( string $path = '' ): string {
-	return 'https://example.com/wp' . $path;
-}
-
-function rest_url(): string {
-	return 'https://example.com/wp-json/';
-}
-
-function wp_parse_url( string $url ): array|false {
-	return parse_url( $url );
-}
-
-function apply_filters( string $hook, mixed $value, mixed ...$args ): mixed {
-	return $value;
-}
-
-function wp_json_encode( mixed $value, int $flags = 0 ): string|false {
-	return json_encode( $value, $flags );
-}
-
 function assert_true( bool $condition, string $message ): void {
 	if ( ! $condition ) {
 		fwrite( STDERR, "FAIL: {$message}\n" );
@@ -130,152 +115,115 @@ function assert_true( bool $condition, string $message ): void {
 	}
 }
 
-function invoke_private( object $object, string $method, mixed ...$arguments ): mixed {
-	$reflection = new ReflectionMethod( $object, $method );
-	if ( PHP_VERSION_ID < 80100 ) {
-		$reflection->setAccessible( true );
-	}
-	return $reflection->invoke( $object, ...$arguments );
+require_once dirname( __DIR__ ) . '/includes/class-instahost-wordpress-mcp-abilities.php';
+
+Instahost_WordPress_MCP_Abilities::register();
+assert_true( 4 === count( $GLOBALS['registered'] ), 'Read-only mode must register four abilities.' );
+assert_true(
+	array_keys( $GLOBALS['registered'] ) === Instahost_WordPress_MCP_Abilities::ability_names(),
+	'Ability registration order must be deterministic.'
+);
+foreach ( $GLOBALS['registered'] as $definition ) {
+	assert_true( true === $definition['meta']['public'], 'Every registered ability must explicitly opt in to MCP exposure.' );
+	assert_true( true === $definition['meta']['annotations']['readOnlyHint'], 'Read-only abilities must be annotated.' );
 }
-
-require_once dirname( __DIR__ ) . '/includes/class-instahost-wordpress-mcp-server.php';
-
-$server     = new Instahost_WordPress_MCP_Server();
-$initialize = invoke_private( $server, 'initialize_result' );
-$discover   = invoke_private( $server, 'discover_result' );
-$tools      = invoke_private( $server, 'get_tools' );
-
-assert_true( '2025-03-26' === $initialize['protocolVersion'], 'Legacy initialization version must remain supported.' );
-assert_true( in_array( '2026-07-28', $discover['supportedVersions'], true ), 'Modern protocol version must be discoverable.' );
-assert_true( 4 === count( $tools ), 'Write tools must be disabled by default.' );
-assert_true( 'wordpress_get_site_info' === $tools[0]['name'], 'Tool order must be deterministic.' );
-
-assert_true( true === $server->can_access(), 'Authenticated editors must access the endpoint.' );
-$GLOBALS['logged_in'] = false;
-assert_true( false === $server->can_access(), 'Anonymous users must not access the endpoint.' );
-$GLOBALS['logged_in'] = true;
 
 $GLOBALS['writes_enabled'] = true;
-$write_tools               = invoke_private( $server, 'get_tools' );
-assert_true( 7 === count( $write_tools ), 'Enabling writes must expose exactly three mutation tools.' );
-
-$modern_payload = array(
-	'jsonrpc' => '2.0',
-	'id'      => 1,
-	'method'  => 'server/discover',
-	'params'  => array(
-		'_meta' => array(
-			'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
-		),
-	),
+$GLOBALS['registered']     = array();
+Instahost_WordPress_MCP_Abilities::register();
+assert_true( 7 === count( $GLOBALS['registered'] ), 'Write mode must register exactly three mutation abilities.' );
+assert_true(
+	false === $GLOBALS['registered']['instahost-wordpress/create-post']['meta']['annotations']['readOnlyHint'],
+	'Create ability must be annotated as mutating.'
 );
-$modern_request = new WP_REST_Request(
-	array(
-		'mcp-protocol-version' => '2026-07-28',
-		'mcp-method'           => 'server/discover',
-	)
+assert_true(
+	true === $GLOBALS['registered']['instahost-wordpress/delete-post']['meta']['annotations']['destructiveHint'],
+	'Delete ability must be annotated as destructive.'
 );
-assert_true( null === invoke_private( $server, 'validate_protocol', $modern_request, $modern_payload, 1 ), 'Matching modern metadata must pass.' );
 
-$bad_version_request = new WP_REST_Request(
-	array(
-		'mcp-protocol-version' => '2025-03-26',
-		'mcp-method'           => 'server/discover',
-	)
-);
-$bad_version = invoke_private( $server, 'validate_protocol', $bad_version_request, $modern_payload, 1 );
-assert_true( 400 === $bad_version->status, 'Mismatched protocol headers must return HTTP 400.' );
-assert_true( -32020 === $bad_version->data['error']['code'], 'Header mismatches must use the MCP HeaderMismatch code.' );
+$adapter = new Fake_Adapter();
+Instahost_WordPress_MCP_Abilities::register_server( $adapter );
+assert_true( 'instahost-wordpress' === $adapter->arguments[0], 'Custom MCP server ID must be stable.' );
+assert_true( 'mcp' === $adapter->arguments[1], 'Custom MCP server namespace must use the adapter namespace.' );
+assert_true( 'instahost-wordpress' === $adapter->arguments[2], 'Custom MCP route must be stable.' );
+assert_true( 7 === count( $adapter->arguments[9] ), 'Custom server must expose all enabled abilities.' );
 
-$missing_meta_payload = array(
-	'jsonrpc' => '2.0',
-	'id'      => 2,
-	'method'  => 'tools/list',
-	'params'  => array(),
-);
-$missing_meta_request = new WP_REST_Request(
-	array(
-		'mcp-protocol-version' => '2026-07-28',
-		'mcp-method'           => 'tools/list',
-	)
-);
-$missing_meta = invoke_private( $server, 'validate_protocol', $missing_meta_request, $missing_meta_payload, 2 );
-assert_true( 400 === $missing_meta->status, 'Modern headers without body metadata must fail.' );
-assert_true( -32020 === $missing_meta->data['error']['code'], 'Missing modern metadata must use the HeaderMismatch code.' );
+$transport_permission = $adapter->arguments[12];
+$GLOBALS['logged_in'] = false;
+$denied               = $transport_permission();
+assert_true( $denied instanceof WP_Error && 401 === $denied->data['status'], 'Anonymous transport access must return 401.' );
+$GLOBALS['logged_in']                   = true;
+$GLOBALS['capabilities']['edit_posts'] = false;
+$denied                                 = $transport_permission();
+assert_true( $denied instanceof WP_Error && 403 === $denied->data['status'], 'Users without edit_posts must return 403.' );
+$GLOBALS['capabilities']['edit_posts'] = true;
+assert_true( true === $transport_permission(), 'Authenticated editors must pass the transport gate.' );
 
-$malformed_method = new WP_REST_Request(
-	array(),
-	array(
-		'jsonrpc' => '2.0',
-		'id'      => 3,
-		'method'  => '<b>tools/call</b>',
-		'params'  => array(
-			'name'      => 'wordpress_delete_post',
-			'arguments' => array( 'id' => 42 ),
-		),
-	)
-);
-$malformed_method_response = $server->handle_request( $malformed_method );
-assert_true( 404 === $malformed_method_response->status, 'Malformed method identifiers must not be normalized into executable methods.' );
-
-$malformed_tool = invoke_private(
-	$server,
-	'call_tool',
-	array(
-		'name'      => 'wordpress_delete_post!',
-		'arguments' => array( 'id' => 42 ),
-	)
-);
-assert_true( true === $malformed_tool['isError'], 'Malformed tool identifiers must not be normalized into executable tools.' );
-assert_true( str_contains( $malformed_tool['content'][0]['text'], 'Unknown tool' ), 'Malformed tools must return an unknown-tool error.' );
-
-$same_origin = new WP_REST_Request( array( 'origin' => 'https://example.com' ) );
-$evil_origin = new WP_REST_Request( array( 'origin' => 'https://evil.example' ) );
-assert_true( null === invoke_private( $server, 'validate_origin', $same_origin, 1 ), 'Same-origin browser requests must pass.' );
-assert_true( 403 === invoke_private( $server, 'validate_origin', $evil_origin, 1 )->status, 'Cross-origin browser requests must fail closed.' );
-
-$tool_result = invoke_private( $server, 'tool_result', array( 'ok' => true ) );
-assert_true( 'complete' === $tool_result['resultType'], 'Modern tool results must be complete results.' );
-assert_true( false === $tool_result['isError'], 'Successful tool results must not be marked as errors.' );
-
-$post_type = get_post_type_object( 'post' );
+$GLOBALS['capabilities']['create_posts']  = true;
 $GLOBALS['capabilities']['publish_posts'] = false;
-try {
-	invoke_private( $server, 'assert_status_change_allowed', 'publish', $post_type );
-	assert_true( false, 'Publishing without publish_posts must fail.' );
-} catch ( RuntimeException $exception ) {
-	assert_true( str_contains( $exception->getMessage(), 'cannot publish' ), 'Publishing must fail for the capability reason.' );
-}
+$publish_denied = Instahost_WordPress_MCP_Abilities::can_create_post(
+	array(
+		'title'  => 'Example',
+		'status' => 'publish',
+	)
+);
+assert_true(
+	$publish_denied instanceof WP_Error && 'instahost_mcp_publish_denied' === $publish_denied->code,
+	'Publishing must require publish_posts.'
+);
 $GLOBALS['capabilities']['publish_posts'] = true;
-invoke_private( $server, 'assert_status_change_allowed', 'publish', $post_type );
-
-$GLOBALS['capabilities']['delete_post'] = false;
-try {
-	invoke_private( $server, 'assert_status_change_allowed', 'trash', $post_type, 42 );
-	assert_true( false, 'Trashing without delete_post must fail.' );
-} catch ( RuntimeException $exception ) {
-	assert_true( str_contains( $exception->getMessage(), 'cannot trash' ), 'Trashing must fail for the capability reason.' );
-}
+assert_true(
+	true === Instahost_WordPress_MCP_Abilities::can_create_post( array( 'title' => 'Example', 'status' => 'publish' ) ),
+	'Authorized publishing must pass.'
+);
 
 $revision           = new WP_Post( 42 );
 $revision->revision = true;
-try {
-	invoke_private( $server, 'assert_post_content_access', $revision );
-	assert_true( false, 'Revision content must be rejected.' );
-} catch ( RuntimeException $exception ) {
-	assert_true( str_contains( $exception->getMessage(), 'Revisions' ), 'Revision rejection must be explicit.' );
-}
+$GLOBALS['posts'][42] = $revision;
+$GLOBALS['capabilities']['read_post'] = true;
+$revision_denied = Instahost_WordPress_MCP_Abilities::can_get_post( array( 'id' => 42 ) );
+assert_true(
+	$revision_denied instanceof WP_Error && 'instahost_mcp_historical_content_denied' === $revision_denied->code,
+	'Revisions must not be exposed.'
+);
 
 $protected                = new WP_Post( 43 );
 $protected->post_password = 'protected';
+$GLOBALS['posts'][43]      = $protected;
 $GLOBALS['capabilities']['edit_post'] = false;
-try {
-	invoke_private( $server, 'assert_post_content_access', $protected );
-	assert_true( false, 'Password-protected content must require edit access.' );
-} catch ( RuntimeException $exception ) {
-	assert_true( str_contains( $exception->getMessage(), 'Password-protected' ), 'Protected-content rejection must be explicit.' );
-}
+$protected_denied = Instahost_WordPress_MCP_Abilities::can_get_post( array( 'id' => 43 ) );
+assert_true(
+	$protected_denied instanceof WP_Error && 'instahost_mcp_protected_content_denied' === $protected_denied->code,
+	'Password-protected content must require edit access.'
+);
 $GLOBALS['capabilities']['edit_post'] = true;
-invoke_private( $server, 'assert_post_content_access', $protected );
+assert_true(
+	true === Instahost_WordPress_MCP_Abilities::can_get_post( array( 'id' => 43 ) ),
+	'Editors must be able to access protected content.'
+);
 
-fwrite( STDOUT, "PASS: protocol smoke tests\n" );
+$editable = new WP_Post( 44 );
+$GLOBALS['posts'][44] = $editable;
+assert_true(
+	true === Instahost_WordPress_MCP_Abilities::can_update_post( array( 'id' => 44 ) ),
+	'An authorized update without a status transition must pass.'
+);
+$GLOBALS['capabilities']['delete_post'] = false;
+$trash_denied = Instahost_WordPress_MCP_Abilities::can_update_post( array( 'id' => 44, 'status' => 'trash' ) );
+assert_true(
+	$trash_denied instanceof WP_Error && 'instahost_mcp_trash_denied' === $trash_denied->code,
+	'Trashing through update must require delete_post.'
+);
+
+$GLOBALS['capabilities']['delete_post'] = true;
+assert_true(
+	true === Instahost_WordPress_MCP_Abilities::can_delete_post( array( 'id' => 44 ) ),
+	'Authorized deletion of REST-visible content must pass.'
+);
+$revision->revision = true;
+assert_true(
+	false === Instahost_WordPress_MCP_Abilities::can_delete_post( array( 'id' => 42 ) ),
+	'Revision deletion must not be exposed.'
+);
+
+fwrite( STDOUT, "PASS: MCP Adapter integration smoke tests\n" );
