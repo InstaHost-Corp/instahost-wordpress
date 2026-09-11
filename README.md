@@ -77,6 +77,7 @@ OAuth is preferred where the WordPress site provides compatible authorization me
 
 ```sh
 php tests/smoke.php
+INSTAHOST_TEST_TRASH_DAYS=0 php tests/smoke.php
 php scripts/check-version.php
 sh scripts/build.sh
 ```

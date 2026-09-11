@@ -7,7 +7,8 @@ declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ );
 define( 'INSTAHOST_WORDPRESS_MCP_VERSION', '1.0.0' );
-define( 'EMPTY_TRASH_DAYS', 30 );
+$trash_days = getenv( 'INSTAHOST_TEST_TRASH_DAYS' );
+define( 'EMPTY_TRASH_DAYS', false === $trash_days ? 30 : (int) $trash_days );
 
 $GLOBALS['writes_enabled']     = false;
 $GLOBALS['logged_in']         = true;
@@ -15,6 +16,7 @@ $GLOBALS['capabilities']      = array( 'edit_posts' => true );
 $GLOBALS['registered']        = array();
 $GLOBALS['posts']             = array();
 $GLOBALS['post_statuses']     = array();
+$GLOBALS['trash_calls']       = 0;
 
 final class WP_Error {
 	/**
@@ -91,6 +93,7 @@ function get_post_status( int $id ): string|false {
 }
 
 function wp_trash_post( int $id ): WP_Post|false {
+	++$GLOBALS['trash_calls'];
 	$post = get_post( $id );
 	if ( ! $post ) {
 		return false;
@@ -263,6 +266,24 @@ assert_true(
 );
 
 $GLOBALS['capabilities']['delete_post'] = true;
+if ( 0 === EMPTY_TRASH_DAYS ) {
+	$permission_denied = Instahost_WordPress_MCP_Abilities::can_delete_post( array( 'id' => 44, 'force' => false ) );
+	assert_true(
+		$permission_denied instanceof WP_Error && 'instahost_mcp_trash_unavailable' === $permission_denied->code,
+		'Non-forced deletion permission must fail when recoverable trash is disabled.'
+	);
+	$execution_denied = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => false ) );
+	assert_true(
+		$execution_denied instanceof WP_Error && 'instahost_mcp_trash_unavailable' === $execution_denied->code,
+		'Non-forced deletion execution must fail when recoverable trash is disabled.'
+	);
+	assert_true( 0 === $GLOBALS['trash_calls'], 'Trash must not be invoked when recoverable trash is disabled.' );
+	$force_deleted = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => true ) );
+	assert_true( true === $force_deleted['deleted'], 'Explicit force deletion must remain available.' );
+	fwrite( STDOUT, "PASS: zero-day trash retention smoke tests\n" );
+	exit( 0 );
+}
+
 assert_true(
 	true === Instahost_WordPress_MCP_Abilities::can_delete_post( array( 'id' => 44 ) ),
 	'Authorized deletion of REST-visible content must pass.'
@@ -283,6 +304,7 @@ assert_true(
 
 $trashed = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => false ) );
 assert_true( true === $trashed['trashed'] && false === $trashed['deleted'], 'Non-forced deletion must explicitly trash content.' );
+assert_true( 1 === $GLOBALS['trash_calls'], 'Non-forced deletion must invoke trash exactly once.' );
 $already_trashed = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => false ) );
 assert_true(
 	$already_trashed instanceof WP_Error && 'instahost_mcp_already_trashed' === $already_trashed->code,

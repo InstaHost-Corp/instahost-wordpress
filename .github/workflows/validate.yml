@@ -22,7 +22,9 @@ jobs:
       - name: Lint PHP
         run: find . -path './.git' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Run smoke tests
-        run: php tests/smoke.php
+        run: |
+          php tests/smoke.php
+          INSTAHOST_TEST_TRASH_DAYS=0 php tests/smoke.php
       - name: Check version consistency
         run: php scripts/check-version.php
       - name: Build plugin package
