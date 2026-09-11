@@ -31,7 +31,7 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 - The transport permission callback rejects anonymous users and requires `edit_posts`.
 - Individual abilities retain WordPress `read_post`, `edit_post`, `delete_post`, post-type creation, publishing, private-content, and edit-others capability checks.
 - Write abilities are disabled by default and require an administrator setting change.
-- The settings page generates an `@automattic/mcp-wordpress-remote` configuration using the exact endpoint.
+- The settings page generates a pinned `@automattic/mcp-wordpress-remote@0.4.0` configuration using the exact endpoint.
 - The source artifact contains only runtime PHP, `readme.txt`, and `uninstall.php`; tests, CI, evidence, and development documentation are excluded from the installable ZIP.
 
 ## Risk-to-test traceability
@@ -40,10 +40,10 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 |---|---|---|
 | Anonymous or low-privilege transport access | MCP Adapter custom-server permission callback | `tests/smoke.php` verifies 401, 403, and editor success |
 | Ability exposed unintentionally | Explicit `meta.public=true` and deterministic ability allowlist | `tests/smoke.php` verifies registered names and metadata |
-| Unauthorized mutation | Write setting plus per-object/status capability callbacks | `tests/smoke.php` verifies publish and trash denial |
+| Unauthorized or ambiguous mutation | Write setting, per-object/status callbacks, explicit trash API, force-only permanent delete | `tests/smoke.php` verifies publish/trash denial and trash/delete semantics |
 | Historical or protected content disclosure | Reject revisions/autosaves and require edit access for protected content | `tests/smoke.php` rejection cases |
 | Tool-list context growth | Focused custom server and seven-ability maximum | Registration smoke test |
-| Client transport incompatibility | Use official MCP Adapter endpoint and Automattic remote `WP_API_URL` contract | Upstream source review and documented configuration |
+| Client transport or supply-chain drift | Use official MCP Adapter endpoint and pin Automattic remote 0.4.0 | Upstream source review and documented configuration |
 | Version drift | One consistency check across plugin metadata and release notes | `php scripts/check-version.php` |
 | Broken PHP package | Multi-version lint and ZIP integrity checks | GitHub Actions plus local lint and `unzip -tq` |
 | Runtime files omitted or polluted | Deterministic allowlist package build | `sh scripts/build.sh` |
@@ -56,7 +56,7 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 - `sh scripts/build.sh`: PASS.
 - `unzip -tq dist/instahost-wordpress-mcp-1.0.0.zip`: PASS.
 - Source-tree credential-pattern scan: PASS; matches are documentation placeholders or references to WordPress Application Passwords.
-- Reproducible plugin ZIP SHA-256 before final freeze: `e2a51f76e65b71e6c9b31f51c9ab4379bdb4ebff20949bdb23e3c2f0f05e1f49`.
+- Reproducible plugin ZIP SHA-256 before final freeze: `3ca83224820432a3deba97d2ca617d2cd65dadbe88bb3323bec40390df3b1c3a`.
 - MCP Adapter 0.6.1 release asset SHA-256 matched its GitHub digest: `1c3cd47c32e99b4e7d8690a44a7890256e92a8b96f61776cbe1894e5483cf676`.
 - Live WordPress 7.1 plus MCP Adapter 0.6.1 release-asset validation: PASS.
 - Application Password initialize and MCP session creation: PASS.
@@ -64,6 +64,8 @@ Both upstream projects were read from their public Git repositories on 2026-09-1
 - Read-only tool discovery: PASS with exactly four InstaHost abilities.
 - Write-enabled tool discovery: PASS with exactly seven InstaHost abilities.
 - Live `get-site-info`, draft creation, draft retrieval, and permanent deletion: PASS.
+- Corrective live schema check confirmed `future` is absent from create/update status enums.
+- Corrective live deletion checks confirmed explicit trash, rejection of repeat non-forced trash, and force-only permanent deletion.
 - Post-test content cleanup and write-option reset: PASS.
 
 ## Dependencies and bounded resources
@@ -88,4 +90,4 @@ The first harness used the MCP Adapter Git source checkout without its Composer-
 
 ## Publication gates
 
-Final engineering, independent QA, signed merge, CI, tag, GitHub Release, release-asset digest, and default-branch verification are recorded in pull request 1 and the v1.0.0 GitHub Release.
+Final engineering, independent QA, signed merge, CI, tag, GitHub Release, release-asset digest, and default-branch verification will be recorded in pull request 1 and the v1.0.0 GitHub Release.

@@ -16,7 +16,7 @@ The first release of InstaHost WordPress MCP provides secure content-management 
 - WordPress Abilities to inspect site metadata, list content, retrieve content, and search posts and pages.
 - Administrator-controlled abilities for creating, updating, trashing, and deleting content.
 - Official MCP Adapter transport, session, schema, and error-handling implementation.
-- Ready-to-edit `@automattic/mcp-wordpress-remote` configuration for OAuth, JWT, or Application Password authentication.
+- Ready-to-edit `@automattic/mcp-wordpress-remote@0.4.0` configuration for OAuth, JWT, or Application Password authentication.
 - WordPress settings page showing the endpoint and write-ability control.
 
 ## Security
@@ -24,7 +24,7 @@ The first release of InstaHost WordPress MCP provides secure content-management 
 - MCP Adapter rejects anonymous transport access.
 - The dedicated server requires the WordPress `edit_posts` capability.
 - Per-post read, edit, and delete capability checks protect content operations.
-- Publishing, private/future status transitions, and trashing require the corresponding WordPress capabilities.
+- Publishing, private status transitions, and trashing require the corresponding WordPress capabilities.
 - Revisions and autosaves are excluded, and password-protected content requires edit access.
 - Write abilities are disabled by default.
 - Content passes through WordPress sanitization and content APIs.
@@ -34,7 +34,8 @@ The first release of InstaHost WordPress MCP provides secure content-management 
 
 - There are no upgrade-breaking changes in this initial release.
 - Operators must install and activate WordPress MCP Adapter 0.6.1 or newer.
-- Operators must configure `@automattic/mcp-wordpress-remote` or another compatible client.
+- Operators must configure `@automattic/mcp-wordpress-remote@0.4.0` or another compatible client.
+- The generated remote-bridge configuration is pinned to tested version `0.4.0`.
 - Write abilities must be enabled explicitly under **Settings > InstaHost MCP** if required.
 
 ## Known issues and residual risks

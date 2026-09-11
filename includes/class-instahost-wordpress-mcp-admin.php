@@ -59,7 +59,7 @@ final class Instahost_WordPress_MCP_Admin {
 			'mcpServers' => array(
 				'instahost-wordpress' => array(
 					'command' => 'npx',
-					'args'    => array( '-y', '@automattic/mcp-wordpress-remote' ),
+					'args'    => array( '-y', '@automattic/mcp-wordpress-remote@0.4.0' ),
 					'env'     => array(
 						'WP_API_URL'     => $endpoint,
 						'WP_API_USERNAME' => 'your-wordpress-username',

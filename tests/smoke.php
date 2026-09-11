@@ -13,6 +13,7 @@ $GLOBALS['logged_in']         = true;
 $GLOBALS['capabilities']      = array( 'edit_posts' => true );
 $GLOBALS['registered']        = array();
 $GLOBALS['posts']             = array();
+$GLOBALS['post_statuses']     = array();
 
 final class WP_Error {
 	/**
@@ -76,8 +77,37 @@ function absint( mixed $value ): int {
 	return abs( (int) $value );
 }
 
+function rest_sanitize_boolean( mixed $value ): bool {
+	return filter_var( $value, FILTER_VALIDATE_BOOLEAN );
+}
+
 function get_post( int $id ): ?WP_Post {
 	return $GLOBALS['posts'][ $id ] ?? null;
+}
+
+function get_post_status( int $id ): string|false {
+	return $GLOBALS['post_statuses'][ $id ] ?? false;
+}
+
+function wp_trash_post( int $id ): WP_Post|false {
+	$post = get_post( $id );
+	if ( ! $post ) {
+		return false;
+	}
+
+	$post->post_status             = 'trash';
+	$GLOBALS['post_statuses'][ $id ] = 'trash';
+	return $post;
+}
+
+function wp_delete_post( int $id, bool $force = false ): WP_Post|false {
+	$post = get_post( $id );
+	if ( ! $post || ! $force ) {
+		return false;
+	}
+
+	unset( $GLOBALS['posts'][ $id ], $GLOBALS['post_statuses'][ $id ] );
+	return $post;
 }
 
 function get_post_type_object( string $post_type ): ?object {
@@ -181,10 +211,17 @@ $revision           = new WP_Post( 42 );
 $revision->revision = true;
 $GLOBALS['posts'][42] = $revision;
 $GLOBALS['capabilities']['read_post'] = true;
+$GLOBALS['capabilities']['edit_post'] = false;
+$raw_denied = Instahost_WordPress_MCP_Abilities::can_get_post( array( 'id' => 42 ) );
+assert_true(
+	$raw_denied instanceof WP_Error && 'instahost_mcp_post_denied' === $raw_denied->code,
+	'Raw post retrieval must require edit access.'
+);
+$GLOBALS['capabilities']['edit_post'] = true;
 $revision_denied = Instahost_WordPress_MCP_Abilities::can_get_post( array( 'id' => 42 ) );
 assert_true(
 	$revision_denied instanceof WP_Error && 'instahost_mcp_historical_content_denied' === $revision_denied->code,
-	'Revisions must not be exposed.'
+	'Revisions must not be exposed even to editors.'
 );
 
 $protected                = new WP_Post( 43 );
@@ -193,8 +230,8 @@ $GLOBALS['posts'][43]      = $protected;
 $GLOBALS['capabilities']['edit_post'] = false;
 $protected_denied = Instahost_WordPress_MCP_Abilities::can_get_post( array( 'id' => 43 ) );
 assert_true(
-	$protected_denied instanceof WP_Error && 'instahost_mcp_protected_content_denied' === $protected_denied->code,
-	'Password-protected content must require edit access.'
+	$protected_denied instanceof WP_Error && 'instahost_mcp_post_denied' === $protected_denied->code,
+	'Protected raw content must require edit access.'
 );
 $GLOBALS['capabilities']['edit_post'] = true;
 assert_true(
@@ -204,6 +241,7 @@ assert_true(
 
 $editable = new WP_Post( 44 );
 $GLOBALS['posts'][44] = $editable;
+$GLOBALS['post_statuses'][44] = 'publish';
 assert_true(
 	true === Instahost_WordPress_MCP_Abilities::can_update_post( array( 'id' => 44 ) ),
 	'An authorized update without a status transition must pass.'
@@ -225,5 +263,15 @@ assert_true(
 	false === Instahost_WordPress_MCP_Abilities::can_delete_post( array( 'id' => 42 ) ),
 	'Revision deletion must not be exposed.'
 );
+
+$trashed = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => false ) );
+assert_true( true === $trashed['trashed'] && false === $trashed['deleted'], 'Non-forced deletion must explicitly trash content.' );
+$already_trashed = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => false ) );
+assert_true(
+	$already_trashed instanceof WP_Error && 'instahost_mcp_already_trashed' === $already_trashed->code,
+	'Already-trashed content must require force for permanent deletion.'
+);
+$deleted = Instahost_WordPress_MCP_Abilities::delete_post( array( 'id' => 44, 'force' => true ) );
+assert_true( true === $deleted['deleted'] && false === $deleted['trashed'], 'Forced deletion must report permanent deletion.' );
 
 fwrite( STDOUT, "PASS: MCP Adapter integration smoke tests\n" );

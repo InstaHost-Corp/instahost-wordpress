@@ -10,7 +10,7 @@ All notable changes to InstaHost WordPress MCP are documented here.
 - Dedicated MCP Adapter endpoint at `/wp-json/mcp/instahost-wordpress`.
 - Read-only abilities for site information, content listing, content retrieval, and search.
 - Optional abilities to create, update, trash, and permanently delete WordPress content.
-- Ready-to-edit `@automattic/mcp-wordpress-remote` client configuration.
+- Ready-to-edit `@automattic/mcp-wordpress-remote@0.4.0` client configuration.
 - OAuth, JWT, and WordPress Application Password connection guidance.
 - Two-layer transport and ability permission enforcement, protected-content controls, and input sanitization.
 - Administrator settings page with write abilities disabled by default.

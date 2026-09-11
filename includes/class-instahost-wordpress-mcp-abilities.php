@@ -112,7 +112,7 @@ final class Instahost_WordPress_MCP_Abilities {
 						'post_type' => array( 'type' => 'string', 'default' => 'post' ),
 						'status'    => array(
 							'type'    => 'string',
-							'enum'    => array( 'publish', 'draft', 'pending', 'future', 'private', 'trash' ),
+							'enum'    => array( 'publish', 'draft', 'pending', 'private', 'trash' ),
 							'default' => 'publish',
 						),
 						'search'    => array( 'type' => 'string' ),
@@ -241,7 +241,7 @@ final class Instahost_WordPress_MCP_Abilities {
 		}
 
 		$post = get_post( absint( $input['id'] ?? 0 ) );
-		if ( ! $post instanceof WP_Post || ! current_user_can( 'read_post', $post->ID ) ) {
+		if ( ! $post instanceof WP_Post || ! current_user_can( 'edit_post', $post->ID ) ) {
 			return new WP_Error( 'instahost_mcp_post_denied', 'Content not found or access denied.' );
 		}
 
@@ -479,7 +479,19 @@ final class Instahost_WordPress_MCP_Abilities {
 	public static function delete_post( array $input = array() ) {
 		$id     = absint( $input['id'] ?? 0 );
 		$force  = rest_sanitize_boolean( $input['force'] ?? false );
-		$result = wp_delete_post( $id, $force );
+		$post   = get_post( $id );
+		if ( ! $post instanceof WP_Post ) {
+			return new WP_Error( 'instahost_mcp_delete_failed', 'Content could not be deleted.' );
+		}
+
+		if ( ! $force && 'trash' === $post->post_status ) {
+			return new WP_Error(
+				'instahost_mcp_already_trashed',
+				'Content is already in the trash. Set force to true to permanently delete it.'
+			);
+		}
+
+		$result = $force ? wp_delete_post( $id, true ) : wp_trash_post( $id );
 		if ( ! $result instanceof WP_Post ) {
 			return new WP_Error( 'instahost_mcp_delete_failed', 'Content could not be deleted.' );
 		}
@@ -487,7 +499,7 @@ final class Instahost_WordPress_MCP_Abilities {
 		return array(
 			'id'      => $id,
 			'deleted' => $force,
-			'trashed' => ! $force,
+			'trashed' => ! $force && 'trash' === get_post_status( $id ),
 		);
 	}
 
@@ -520,13 +532,13 @@ final class Instahost_WordPress_MCP_Abilities {
 	 * @return true|WP_Error
 	 */
 	private static function check_status_permission( string $status, object $post_type_object, int $post_id = 0 ) {
-		$allowed = array( 'draft', 'pending', 'publish', 'future', 'private', 'trash' );
+		$allowed = array( 'draft', 'pending', 'publish', 'private', 'trash' );
 		if ( ! in_array( $status, $allowed, true ) ) {
 			return new WP_Error( 'instahost_mcp_invalid_status', 'Invalid or unsupported post status.' );
 		}
 
 		if (
-			in_array( $status, array( 'publish', 'future', 'private' ), true )
+			in_array( $status, array( 'publish', 'private' ), true )
 			&& ! current_user_can( $post_type_object->cap->publish_posts )
 		) {
 			return new WP_Error( 'instahost_mcp_publish_denied', 'Publishing is denied.' );
@@ -678,7 +690,7 @@ final class Instahost_WordPress_MCP_Abilities {
 				'excerpt'   => array( 'type' => 'string' ),
 				'status'    => array(
 					'type'    => 'string',
-					'enum'    => array( 'draft', 'pending', 'publish', 'future', 'private', 'trash' ),
+					'enum'    => array( 'draft', 'pending', 'publish', 'private', 'trash' ),
 					'default' => 'draft',
 				),
 				'slug'      => array( 'type' => 'string' ),

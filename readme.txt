@@ -36,7 +36,7 @@ The MCP Adapter owns protocol transport, sessions, error handling, and ability e
 
 == MCP client configuration ==
 
-For desktop clients, install or run `@automattic/mcp-wordpress-remote` and set:
+For desktop clients, install or run the tested `@automattic/mcp-wordpress-remote@0.4.0` bridge and set:
 
 * `WP_API_URL=https://example.com/wp-json/mcp/instahost-wordpress`
 * OAuth settings, a JWT token, or `WP_API_USERNAME` and `WP_API_PASSWORD`.

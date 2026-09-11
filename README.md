@@ -38,7 +38,7 @@ Write abilities are disabled by default. Enable them under **Settings > InstaHos
 1. Download `mcp-adapter.zip` from the [MCP Adapter releases](https://github.com/WordPress/mcp-adapter/releases/latest), then install and activate it.
 2. Upload and activate **InstaHost WordPress MCP**.
 3. Open **Settings > InstaHost MCP**.
-4. Copy the generated `@automattic/mcp-wordpress-remote` configuration and replace the credential placeholders, or configure OAuth/JWT.
+4. Copy the generated `@automattic/mcp-wordpress-remote@0.4.0` configuration and replace the credential placeholders, or configure OAuth/JWT.
 
 ## Example remote configuration
 
@@ -47,7 +47,7 @@ Write abilities are disabled by default. Enable them under **Settings > InstaHos
   "mcpServers": {
     "instahost-wordpress": {
       "command": "npx",
-      "args": ["-y", "@automattic/mcp-wordpress-remote"],
+      "args": ["-y", "@automattic/mcp-wordpress-remote@0.4.0"],
       "env": {
         "WP_API_URL": "https://example.com/wp-json/mcp/instahost-wordpress",
         "WP_API_USERNAME": "your-wordpress-username",
@@ -65,7 +65,8 @@ OAuth is preferred where the WordPress site provides compatible authorization me
 
 - MCP Adapter transport permission requires an authenticated user with `edit_posts`.
 - Every ability independently checks the relevant WordPress capabilities.
-- Publish, future, private, trash, and delete operations have explicit capability gates.
+- Publish, private, trash, and delete operations have explicit capability gates.
+- The tested remote bridge is pinned to `@automattic/mcp-wordpress-remote@0.4.0`.
 - Non-published list results are limited to the current author unless the caller can edit others' content.
 - Revisions, autosaves, and inaccessible password-protected content are not returned.
 - Mutation input is sanitized through WordPress APIs.
