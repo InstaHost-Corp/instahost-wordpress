@@ -69,6 +69,7 @@ final class Instahost_WordPress_MCP_Admin {
 				),
 			),
 		);
+		$enrollment = Instahost_WordPress_MCP_Enrollment::state();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'InstaHost WordPress MCP', 'instahost-wordpress-mcp' ); ?></h1>
@@ -78,6 +79,28 @@ final class Instahost_WordPress_MCP_Admin {
 			</p>
 			<p>
 				<?php esc_html_e( 'For desktop MCP clients, use the Automattic remote bridge with OAuth, JWT, or a WordPress Application Password.', 'instahost-wordpress-mcp' ); ?>
+			</p>
+			<h2><?php esc_html_e( 'Managed automatic connection', 'instahost-wordpress-mcp' ); ?></h2>
+			<p>
+				<?php esc_html_e( 'Enrollment status:', 'instahost-wordpress-mcp' ); ?>
+				<strong><?php echo esc_html( (string) $enrollment['status'] ); ?></strong>
+			</p>
+			<?php if ( ! empty( $enrollment['registry_host'] ) ) : ?>
+				<p><?php echo esc_html( sprintf( __( 'Registry: %s', 'instahost-wordpress-mcp' ), $enrollment['registry_host'] ) ); ?></p>
+			<?php endif; ?>
+			<?php if ( ! empty( $enrollment['last_error'] ) ) : ?>
+				<div class="notice notice-error inline"><p><?php echo esc_html( $enrollment['last_error'] ); ?></p></div>
+			<?php endif; ?>
+			<p class="description">
+				<?php esc_html_e( 'Managed enrollment runs automatically only when the registry URL and one-time enrollment token are supplied through wp-config.php. It creates a restricted, revocable MCP identity and never sends administrator credentials or site content.', 'instahost-wordpress-mcp' ); ?>
+			</p>
+			<p>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=instahost_mcp_retry_enrollment' ), 'instahost_mcp_retry_enrollment' ) ); ?>">
+					<?php esc_html_e( 'Retry enrollment', 'instahost-wordpress-mcp' ); ?>
+				</a>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=instahost_mcp_revoke_enrollment' ), 'instahost_mcp_revoke_enrollment' ) ); ?>">
+					<?php esc_html_e( 'Revoke connection', 'instahost-wordpress-mcp' ); ?>
+				</a>
 			</p>
 			<h2><?php esc_html_e( 'Application Password client configuration', 'instahost-wordpress-mcp' ); ?></h2>
 			<textarea class="large-text code" rows="16" readonly><?php echo esc_textarea( wp_json_encode( $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
