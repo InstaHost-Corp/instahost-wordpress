@@ -20,6 +20,8 @@ jobs:
         run: |
           php tests/smoke.php
           INSTAHOST_TEST_TRASH_DAYS=0 php tests/smoke.php
+          php tests/enrollment.php
+          php tests/enrollment-unconfigured.php
       - name: Check version consistency
         run: php scripts/check-version.php
       - name: Build plugin package

@@ -26,6 +26,28 @@ For desktop MCP clients, use [Automattic MCP WordPress Remote](https://github.co
 
 Write abilities are disabled by default. Enable them under **Settings > InstaHost MCP**.
 
+## Managed automatic enrollment
+
+Managed deployments can make the MCP connection available automatically after
+plugin activation. Provision these values through `wp-config.php` without
+committing them:
+
+```php
+define( 'INSTAHOST_WORDPRESS_MCP_REGISTRY_URL', 'https://registry.example.com/v1/enroll' );
+define( 'INSTAHOST_WORDPRESS_MCP_ENROLLMENT_TOKEN', '<single-use-token>' );
+```
+
+The plugin schedules an HTTPS enrollment, creates a restricted dedicated MCP
+identity, and sends the registry a revocable route-scoped bearer token. It
+never sends administrator credentials, content, cookies, or database data.
+Public installs with no deployment-time token make no outbound request.
+
+The receiving registry must verify the site through the advertised MCP
+endpoint, protect against SSRF/DNS rebinding, encrypt the connection token, and
+keep writes disabled unless the WordPress administrator enables them. See
+[`docs/managed-enrollment.md`](docs/managed-enrollment.md) for the complete
+contract.
+
 ## Requirements
 
 - WordPress 6.9 or newer
@@ -70,6 +92,9 @@ OAuth is preferred where the WordPress site provides compatible authorization me
 - The tested remote bridge is pinned to `@automattic/mcp-wordpress-remote@0.4.0`.
 - Non-published list results are limited to the current author unless the caller can edit others' content.
 - Revisions, autosaves, and inaccessible password-protected content are not returned.
+- Managed enrollment credentials authenticate only on the dedicated MCP route.
+- Invalid `ihmcp_` credentials fail closed without intercepting unrelated JWT/OAuth bearer tokens.
+- Public installs make no phone-home request unless a registry URL and one-time enrollment token are explicitly provisioned.
 - Mutation input is sanitized through WordPress APIs.
 - Uninstall removes only this plugin's setting; it never deletes WordPress content.
 
@@ -78,6 +103,8 @@ OAuth is preferred where the WordPress site provides compatible authorization me
 ```sh
 php tests/smoke.php
 INSTAHOST_TEST_TRASH_DAYS=0 php tests/smoke.php
+php tests/enrollment.php
+php tests/enrollment-unconfigured.php
 php scripts/check-version.php
 sh scripts/build.sh
 ```
